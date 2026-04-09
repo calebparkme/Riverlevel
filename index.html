@@ -1,0 +1,1642 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>온타리오주 강 수위 모니터링</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1923;
+      --surface: #162130;
+      --card: #1c2d3f;
+      --border: #243650;
+      --accent: #38bdf8;
+      --accent2: #34d399;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --text: #e2e8f0;
+      --muted: #64748b;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-left h1 { font-size: 1.2rem; font-weight: 700; color: var(--accent); }
+    .header-left p  { font-size: 0.75rem; color: var(--muted); margin-top: 0.1rem; }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .header-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .group-label {
+      font-size: 0.6rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+
+    .header-divider {
+      width: 1px;
+      height: 36px;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+
+    .range-buttons { display: flex; gap: 0.35rem; }
+    .range-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 0.3rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+    .range-btn:hover { border-color: var(--accent); color: var(--text); }
+    .range-btn.active { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 700; }
+
+    .refresh-btn {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      padding: 0.35rem 1rem;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .refresh-btn:hover   { opacity: 0.85; }
+    .refresh-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* ── Main ── */
+    main {
+      padding: 1rem 1.5rem;
+      max-width: 1600px;
+      margin: 0 auto;
+      display: flex;
+      gap: 1.25rem;
+      align-items: stretch;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      width: 100%;
+    }
+
+    /* ── Station chart grid ── */
+    .charts-area {
+      flex: 1;
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      gap: 1rem;
+      flex: 1;
+      min-height: 0;
+    }
+
+    @media (max-width: 1100px) {
+      .charts-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 600px) {
+      .charts-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 900px) {
+      main { flex-direction: column; }
+      .note-panel { width: 100% !important; }
+    }
+
+    /* ── Note Panel ── */
+    .note-panel {
+      width: 300px;
+      flex-shrink: 0;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+    .note-panel::-webkit-scrollbar { display: none; }
+
+    .note-header {
+      padding: 0.75rem 1rem;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      flex-shrink: 0;
+    }
+
+    .note-header-left {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .note-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .note-badge {
+      background: #3d2a06;
+      color: var(--warn);
+      font-size: 0.62rem;
+      font-weight: 700;
+      padding: 0.1rem 0.45rem;
+      border-radius: 10px;
+    }
+
+    .note-toggle {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.75rem;
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      transition: color 0.15s;
+    }
+    .note-toggle:hover { color: var(--text); }
+
+    .note-body {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .note-body.collapsed { display: none; }
+
+    #note-list {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+
+    .note-desc {
+      font-size: 0.7rem;
+      color: var(--muted);
+      padding: 0.6rem 1rem;
+      border-bottom: 1px solid var(--border);
+      line-height: 1.5;
+    }
+
+    .note-group-label {
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--muted);
+      padding: 0.5rem 1rem 0.2rem;
+      border-top: 1px solid var(--border);
+    }
+    .note-group-label:first-of-type { border-top: none; }
+
+    .note-item {
+      padding: 0.3rem 1rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+
+    .note-item-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+      margin-top: 0.4rem;
+    }
+
+    .note-item-text {
+      font-size: 0.7rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .note-item-id {
+      font-size: 0.6rem;
+      color: #3a5070;
+      display: block;
+    }
+
+    .note-loading {
+      padding: 1rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    /* ── Drag & Drop ── */
+    .drag-handle {
+      cursor: grab;
+      color: var(--muted);
+      opacity: 0.45;
+      flex-shrink: 0;
+      padding: 0 0.35rem 0 0;
+      user-select: none;
+      display: flex;
+      align-items: center;
+    }
+    .drag-handle:hover { opacity: 0.9; color: var(--accent); }
+    .drag-handle:active { cursor: grabbing; }
+    .station-panel.dragging {
+      opacity: 0.3;
+      outline: 2px dashed var(--accent);
+    }
+    .station-panel.drag-over {
+      outline: 2px solid var(--accent);
+      box-shadow: 0 0 0 4px rgba(56,189,248,0.15);
+    }
+
+    /* ── Station chart panel ── */
+    .station-panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: border-color 0.2s;
+      min-height: 0;
+    }
+    .station-panel:hover { border-color: #2d4a6a; }
+
+    .panel-status-bar {
+      height: 3px;
+      background: var(--accent2);
+      flex-shrink: 0;
+    }
+    .panel-status-bar.warn   { background: var(--warn); }
+    .panel-status-bar.danger { background: var(--danger); }
+
+    .panel-header {
+      padding: 0.9rem 1.1rem 0.6rem;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .panel-title { flex: 1; }
+    .panel-title .name    { font-size: 0.9rem; font-weight: 700; color: var(--accent); }
+    .panel-title .name-en { font-size: 0.68rem; color: var(--muted); margin-top: 0.1rem; }
+
+    .panel-metrics {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .metric {
+      display: flex;
+      align-items: baseline;
+      gap: 0.25rem;
+    }
+    .metric label {
+      font-size: 0.55rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+    .metric .value { font-size: 1.0rem; font-weight: 700; line-height: 1; }
+    .metric .unit  { font-size: 0.58rem; color: var(--muted); }
+
+    .panel-meta {
+      padding: 0 1.1rem 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .status-badge {
+      font-size: 0.63rem;
+      padding: 0.18rem 0.55rem;
+      border-radius: 4px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+    .status-normal  { background: #0d3d2d; color: var(--accent2); }
+    .status-warn    { background: #3d2a06; color: var(--warn); }
+    .status-danger  { background: #3d0f0f; color: var(--danger); }
+    .status-loading { background: #1e293b; color: var(--muted); }
+
+    .panel-time { font-size: 0.63rem; color: var(--muted); }
+
+    /* ── Fishing level input ── */
+    .fishing-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+    .fishing-label {
+      font-size: 0.6rem;
+      color: #d4a017;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .fishing-input {
+      width: 100%;
+      text-align: right;
+      background: var(--surface);
+      border: 1px solid #d4a017;
+      border-radius: 4px;
+      color: var(--text);
+      font-size: 0.72rem;
+      padding: 0.2rem 0.45rem;
+      outline: none;
+      -moz-appearance: textfield;
+    }
+    .fishing-input::-webkit-inner-spin-button,
+    .fishing-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+    .fishing-input::placeholder { color: rgba(255,255,255,0.75); font-size: 0.55rem; }
+    .fishing-input:focus::placeholder { color: transparent; }
+    .fishing-input:focus { border-color: #f0c040; }
+
+    /* ── Chart area ── */
+    .panel-chart-wrap {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      padding: 0 0.5rem 0.5rem;
+    }
+
+    .chart-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      color: var(--muted);
+      pointer-events: none;
+    }
+
+    /* ── Spinner ── */
+    .spinner {
+      display: inline-block;
+      width: 11px; height: 11px;
+      border: 2px solid var(--muted);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+      margin-right: 0.35rem;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Legend strip ── */
+    .panel-legend {
+      padding: 0.4rem 1.1rem 0.7rem;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      border-top: 1px solid var(--border);
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.63rem;
+      color: var(--muted);
+    }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+    /* ── Dropdown ── */
+    .panel-dropdown-wrap {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      width: 72px;
+    }
+
+    .dropdown-toggle-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 0.25rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      white-space: nowrap;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .dropdown-toggle-btn:hover { border-color: var(--accent); color: var(--text); }
+    .dropdown-toggle-btn svg  { flex-shrink: 0; transition: transform 0.2s; }
+    .dropdown-toggle-btn.open svg { transform: rotate(180deg); }
+
+    .dropdown-menu {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      width: 230px;
+      background: #0f1e2e;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      z-index: 200;
+      overflow: hidden;
+    }
+    .dropdown-menu.open { display: block; }
+
+    .dropdown-search {
+      width: 100%;
+      background: var(--surface);
+      border: none;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.5rem 0.75rem;
+      font-size: 0.75rem;
+      outline: none;
+    }
+    .dropdown-search::placeholder { color: var(--muted); }
+
+    .dropdown-list {
+      max-height: 260px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+
+    .dropdown-group-label {
+      font-size: 0.58rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      padding: 0.55rem 0.75rem 0.2rem;
+      border-top: 1px solid var(--border);
+    }
+    .dropdown-group-label:first-child { border-top: none; }
+
+    .dropdown-item {
+      padding: 0.45rem 0.75rem;
+      font-size: 0.75rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.4rem;
+      transition: background 0.12s;
+    }
+    .dropdown-item:hover   { background: var(--card); }
+    .dropdown-item.current { color: var(--accent); font-weight: 600; }
+    .dropdown-item.current::after { content: '✓'; font-size: 0.65rem; flex-shrink: 0; }
+    .dropdown-item-id { font-size: 0.6rem; color: var(--muted); flex-shrink: 0; }
+
+    /* ── Webcam Panel ── */
+    .webcam-panel {
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .webcam-panel-header {
+      padding: 0.6rem 1rem;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .webcam-panel-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .webcam-live-badge {
+      background: var(--danger);
+      color: #fff;
+      font-size: 0.58rem;
+      font-weight: 700;
+      padding: 0.1rem 0.45rem;
+      border-radius: 4px;
+      letter-spacing: 0.05em;
+      animation: pulse-badge 2s infinite;
+    }
+    @keyframes pulse-badge {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.5; }
+    }
+
+    .webcam-location-select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.25rem 0.5rem;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      cursor: pointer;
+      outline: none;
+      width: 100%;
+      transition: border-color 0.15s;
+    }
+    .webcam-location-select:hover,
+    .webcam-location-select:focus { border-color: var(--accent); }
+    .webcam-location-select option { background: var(--card); }
+
+    .webcam-body {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      background: #080f16;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .webcam-body iframe,
+    .webcam-body img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      object-fit: contain;
+    }
+
+    .webcam-placeholder {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 2;
+      pointer-events: none;
+    }
+
+    .webcam-placeholder .cam-icon {
+      font-size: 2.5rem;
+      display: block;
+      margin-bottom: 0.4rem;
+      opacity: 0.4;
+    }
+
+    .webcam-footer {
+      padding: 0.5rem 1.1rem;
+      font-size: 0.65rem;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    footer { display: none; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>온타리오주 강 수위 모니터링</h1>
+    <p>Ontario, Canada — 실시간 수문 데이터 (출처: Water Survey of Canada · ECCC)</p>
+  </div>
+  <div class="header-right">
+    <div class="header-group">
+      <span class="group-label">조회 기간</span>
+      <div class="range-buttons" id="range-buttons">
+        <button class="range-btn active" onclick="setRange('당일', this)">당일</button>
+        <button class="range-btn" onclick="setRange('3일', this)">3일</button>
+        <button class="range-btn" onclick="setRange('1주', this)">1주</button>
+        <button class="range-btn" onclick="setRange('1달', this)">1달</button>
+      </div>
+    </div>
+    <div class="header-divider"></div>
+    <div class="header-group">
+      <span class="group-label">업데이트 주기</span>
+      <div class="range-buttons" id="interval-buttons">
+        <button class="range-btn" onclick="setRefreshInterval(10, this)">10분</button>
+        <button class="range-btn active" onclick="setRefreshInterval(30, this)">30분</button>
+        <button class="range-btn" onclick="setRefreshInterval(60, this)">1시간</button>
+      </div>
+    </div>
+    <div class="header-divider"></div>
+    <div class="header-group">
+      <span id="last-update" style="font-size:0.72rem;color:var(--muted)">데이터 로딩 중...</span>
+      <span id="next-update" style="font-size:0.68rem;color:var(--muted)"></span>
+    </div>
+    <button class="refresh-btn" id="refresh-btn" onclick="refreshAll()">새로고침</button>
+  </div>
+</header>
+
+<main>
+  <div class="charts-area">
+    <div class="charts-grid" id="charts-grid"></div>
+  </div>
+
+  <aside class="note-panel" id="note-panel">
+    <!-- 관측소 목록 -->
+    <div class="note-header">
+      <div class="note-header-left">
+        <span class="note-title">⚠ 실시간 데이터 없는 관측소</span>
+        <span class="note-badge" id="note-count">…</span>
+      </div>
+      <button class="note-toggle" onclick="toggleNote()" id="note-toggle-btn" title="접기/펼치기">▲</button>
+    </div>
+    <div class="note-body" id="note-body">
+      <div class="note-desc">
+        아래 관측소는 온타리오 활성 관측소이지만<br>
+        실시간(5분~1시간) 데이터를 제공하지 않아<br>
+        지역 선택에서 제외됩니다.
+      </div>
+      <div id="note-list">
+        <div class="note-loading"><span class="spinner"></span> 로딩 중...</div>
+      </div>
+    </div>
+
+    <!-- 웹캠 패널 (관측소 목록 바로 아래) -->
+    <div class="webcam-panel">
+      <div class="webcam-panel-header">
+        <div class="webcam-panel-title">
+          📷 실시간 웹캠
+          <span class="webcam-live-badge">LIVE</span>
+        </div>
+        <select class="webcam-location-select" id="webcam-select" onchange="changeWebcam(this.value)">
+          <option value="">— 지역 선택 —</option>
+          <optgroup label="Grand River">
+            <option value="https://apps.grandriver.ca/WaterData/cameras/westmontrose/westmontrose.jpg">Grand River at West Montrose (Covered Bridge)</option>
+            <option value="https://apps.grandriver.ca/WaterData/cameras/brantford/brantford.jpg">Grand River at Brantford (Veterans Memorial)</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="webcam-body" id="webcam-body">
+        <div class="webcam-placeholder">
+          <span class="cam-icon">📷</span>
+          위의 드롭다운에서 지역을 선택하세요
+        </div>
+      </div>
+      <div class="webcam-footer" id="webcam-footer">
+        📍 지역을 선택하면 실시간 웹캠이 표시됩니다
+      </div>
+    </div>
+  </aside>
+</main>
+
+<footer>
+  데이터 출처:
+  <a href="https://wateroffice.ec.gc.ca/" target="_blank">Water Survey of Canada (WSC) — Environment and Climate Change Canada (ECCC)</a>
+</footer>
+
+<script>
+// ─────────────────────────────────────────────
+// 관측소 목록 (API에서 동적 로드)
+// ─────────────────────────────────────────────
+
+// 주요 관측소 임계값 (알려진 곳만)
+const THRESHOLDS = {
+  '02GA003': { warnLevel: 5.0, dangerLevel: 6.5 },
+  '02GA048': { warnLevel: 4.0, dangerLevel: 5.5 },
+  '02GA016': { warnLevel: 3.0, dangerLevel: 4.5 },
+  '02GB001': { warnLevel: 6.0, dangerLevel: 8.0 },
+  '02GA047': { warnLevel: 2.5, dangerLevel: 3.5 },
+  '02GA006': { warnLevel: 2.0, dangerLevel: 3.0 },
+};
+
+// 기본 패널 관측소 ID (9개)
+const DEFAULT_PANEL_IDS = [
+  '02GA003',  // Grand River at Galt
+  '02GA048',  // Grand River near Doon
+  '02GA016',  // Grand River below Shand Dam
+  '02GB001',  // Grand River at Brantford
+  '02GA047',  // Speed River at Cambridge
+  '02GA006',  // Conestogo River at St. Jacobs
+  '02GA041',  // Grand River near Dundalk
+  '02GA034',  // Grand River at West Montrose
+  '02GA028',  // Conestogo River at Glen Allan
+];
+
+let ALL_STATIONS      = [];   // 실시간 데이터 있는 관측소 (드롭다운용)
+let EXCLUDED_STATIONS = [];   // 실시간 데이터 없는 관측소 (노트 패널용)
+let panelStations     = [];   // 인덱스 → 관측소 객체
+
+// 관측소 이름에서 강 이름(그룹) 추출
+function extractRiverGroup(stationName) {
+  const splits = [' AT ', ' NEAR ', ' ABOVE ', ' BELOW ', ' TRIBUTARY', ' OUTLET', ' INLET'];
+  for (const kw of splits) {
+    const i = stationName.indexOf(kw);
+    if (i > 0) return toTitleCase(stationName.substring(0, i));
+  }
+  return toTitleCase(stationName);
+}
+
+function toTitleCase(str) {
+  return str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function makeStation(id, apiName) {
+  const t = THRESHOLDS[id] || { warnLevel: null, dangerLevel: null };
+  return {
+    id,
+    name:       apiName,
+    nameEn:     apiName,
+    group:      extractRiverGroup(apiName),
+    warnLevel:  t.warnLevel,
+    dangerLevel: t.dangerLevel,
+  };
+}
+
+// 온타리오 전체 활성 관측소 로드 + REAL_TIME 필드로 분류
+async function loadAllStations() {
+  const url = 'https://api.weather.gc.ca/collections/hydrometric-stations/items' +
+              '?PROV_TERR_STATE_LOC=ON&STATUS_EN=Active&f=json&limit=600';
+  const res  = await fetch(url);
+  const json = await res.json();
+
+  const realtime = [];
+  const excluded = [];
+
+  for (const f of (json.features || [])) {
+    const p = f.properties;
+    const s = makeStation(p.STATION_NUMBER, p.STATION_NAME);
+    if (p.REAL_TIME === 1) {
+      realtime.push(s);
+    } else {
+      excluded.push(s);
+    }
+  }
+
+  const sortFn = (a, b) => a.group.localeCompare(b.group) || a.name.localeCompare(b.name);
+  ALL_STATIONS      = realtime.sort(sortFn);
+  EXCLUDED_STATIONS = excluded.sort(sortFn);
+
+  // 기본 패널 관측소 설정 (실시간 관측소 기준)
+  panelStations = DEFAULT_PANEL_IDS.map(id =>
+    ALL_STATIONS.find(s => s.id === id) || makeStation(id, id)
+  );
+}
+
+// 노트 패널 렌더링
+function renderNotePanel() {
+  const countEl = document.getElementById('note-count');
+  const listEl  = document.getElementById('note-list');
+  if (!countEl || !listEl) return;
+
+  countEl.textContent = `${EXCLUDED_STATIONS.length}개`;
+
+  if (!EXCLUDED_STATIONS.length) {
+    listEl.innerHTML = '<div class="note-loading">제외된 관측소 없음</div>';
+    return;
+  }
+
+  const groups = [...new Set(EXCLUDED_STATIONS.map(s => s.group))];
+  listEl.innerHTML = groups.map((g, gi) => {
+    const items = EXCLUDED_STATIONS.filter(s => s.group === g);
+    return `
+      <div class="note-group-label" style="${gi === 0 ? 'border-top:none' : ''}">${g} (${items.length})</div>
+      ${items.map(s => `
+        <div class="note-item">
+          <div class="note-item-dot"></div>
+          <div class="note-item-text">
+            ${s.name}
+            <span class="note-item-id">${s.id}</span>
+          </div>
+        </div>`).join('')}
+    `;
+  }).join('');
+}
+
+// 노트 패널 접기/펼치기
+function toggleNote() {
+  const body = document.getElementById('note-body');
+  const btn  = document.getElementById('note-toggle-btn');
+  const collapsed = body.classList.toggle('collapsed');
+  btn.textContent = collapsed ? '▼' : '▲';
+}
+
+// 관측소 ID로 조회 (로드 전에도 사용 가능)
+function findStation(id) {
+  return ALL_STATIONS.find(s => s.id === id) || makeStation(id, id);
+}
+
+// ── 데이터 소스: api.weather.gc.ca OGC API (CORS 지원, 프록시 불필요) ─────────
+const REALTIME_URL = 'https://api.weather.gc.ca/collections/hydrometric-realtime/items';
+
+// 기간 설정: days, API limit
+// ※ 실시간 데이터는 약 30일치 롤링 윈도우 제공 (5분 간격)
+// ※ 2달 요청 시 최근 30일치만 반환될 수 있음
+// ※ hydrometric-realtime API 는 최근 ~30일 롤링 윈도우만 제공
+const RANGE_CONFIG = {
+  '당일': { days: 1,  limit: 500  },
+  '3일':  { days: 3,  limit: 1500 },
+  '1주':  { days: 7,  limit: 2500 },
+  '1달':  { days: 30, limit: 9000 },
+};
+
+let stationData    = {};   // stationId  → { level, discharge, time, history }
+let chartInstances = {};   // panelIndex → Chart instance
+let fishingLevels  = {};   // panelIndex → number | null
+let currentRange   = '당일';
+let refreshTimer   = null;
+let isRefreshing   = false; // 동시 새로고침 방지 플래그
+let refreshId      = 0;     // 새로고침 세대 카운터 (오래된 로드 취소용)
+
+// ─────────────────────────────────────────────
+// API (api.weather.gc.ca OGC — CORS 지원)
+// ─────────────────────────────────────────────
+async function fetchStation(station, rangeKey) {
+  const cfg   = RANGE_CONFIG[rangeKey];
+  const end   = new Date();
+  const start = new Date(end - cfg.days * 86400 * 1000);
+  const fmtTs = d => d.toISOString().split('.')[0] + 'Z';
+
+  const url = `${REALTIME_URL}?STATION_NUMBER=${station.id}`
+            + `&datetime=${fmtTs(start)}/${fmtTs(end)}`
+            + `&f=json&limit=${cfg.limit}&sortby=DATETIME`;
+
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = await res.json();
+
+  const history = (json.features || [])
+    .map(f => ({
+      time:      new Date(f.properties.DATETIME),
+      level:     f.properties.LEVEL,
+      discharge: f.properties.DISCHARGE,
+    }))
+    .filter(h => h.level != null)
+    .sort((a, b) => a.time - b.time);
+
+  if (!history.length) return null;
+  const latest = history[history.length - 1];
+  return { ...latest, history, station, isDaily: false };
+}
+
+// ─────────────────────────────────────────────
+// 상태 헬퍼
+// ─────────────────────────────────────────────
+function statusClass(level, s) {
+  if (level == null) return '';
+  if (level >= s.dangerLevel) return 'danger';
+  if (level >= s.warnLevel)   return 'warn';
+  return '';
+}
+
+function statusBadgeHTML(level, s) {
+  if (level == null) return `<span class="status-badge status-loading"><span class="spinner"></span>로딩 중</span>`;
+  if (level >= s.dangerLevel) return `<span class="status-badge status-danger">위험</span>`;
+  if (level >= s.warnLevel)   return `<span class="status-badge status-warn">주의</span>`;
+  return `<span class="status-badge status-normal">정상</span>`;
+}
+
+function formatTime(date) {
+  return date.toLocaleString('ko-KR', {
+    month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+    timeZone: 'America/Toronto',
+  }) + ' (ET)';
+}
+
+// ─────────────────────────────────────────────
+// 드롭다운 HTML 생성
+// ─────────────────────────────────────────────
+function buildDropdownHTML(panelIdx) {
+  // 드롭다운 열릴 때 filterDropdown이 채우므로 placeholder만 반환
+  return '<div style="padding:0.75rem;font-size:0.75rem;color:var(--muted)">관측소 목록 로딩 중...</div>';
+}
+
+// ─────────────────────────────────────────────
+// 패널 초기 생성
+// ─────────────────────────────────────────────
+function buildPanels() {
+  const grid = document.getElementById('charts-grid');
+  grid.innerHTML = '';
+
+  panelStations.forEach((s, idx) => {
+    const panel = document.createElement('div');
+    panel.className = 'station-panel';
+    panel.id = `panel-${idx}`;
+    panel.innerHTML = `
+      <div class="panel-status-bar" id="bar-${idx}"></div>
+      <div class="panel-header">
+        <span class="drag-handle" title="드래그하여 위치 변경">
+          <svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor">
+            <circle cx="3" cy="3"  r="1.5"/><circle cx="9" cy="3"  r="1.5"/>
+            <circle cx="3" cy="9"  r="1.5"/><circle cx="9" cy="9"  r="1.5"/>
+            <circle cx="3" cy="15" r="1.5"/><circle cx="9" cy="15" r="1.5"/>
+          </svg>
+        </span>
+        <div class="panel-title">
+          <div class="name" id="title-name-${idx}">${s.name}</div>
+          <div class="name-en" id="title-en-${idx}">${s.nameEn}</div>
+        </div>
+        <div style="display:flex;align-items:stretch;gap:0.6rem">
+          <div class="panel-metrics" id="metrics-${idx}">
+            <div class="metric">
+              <label>수위</label><span class="value">—</span><span class="unit">m</span>
+            </div>
+          </div>
+          <div class="panel-dropdown-wrap">
+            <button class="dropdown-toggle-btn" id="ddtoggle-${idx}"
+                    onclick="toggleDropdown(${idx}, event)">
+              지역 변경
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <div class="dropdown-menu" id="dropdown-${idx}">
+              <input class="dropdown-search" type="text" placeholder="관측소 검색..."
+                     oninput="filterDropdown(${idx}, this.value)" />
+              <div class="dropdown-list" id="dropdown-list-${idx}">
+                ${buildDropdownHTML(idx)}
+              </div>
+            </div>
+            <div class="fishing-wrap">
+              <input class="fishing-input" type="text" inputmode="decimal" id="fishing-${idx}" placeholder="Best for Fishing"
+                     onfocus="fishingFocus(${idx}, this)"
+                     onblur="fishingBlur(${idx}, this)"
+                     oninput="setFishingLevel(${idx}, this.value)" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="panel-meta" id="meta-${idx}">
+        <span class="status-badge status-loading"><span class="spinner"></span>로딩 중</span>
+      </div>
+      <div class="panel-chart-wrap">
+        <canvas id="canvas-${idx}"></canvas>
+        <div class="chart-overlay" id="overlay-${idx}"><span class="spinner"></span> 데이터 로딩 중...</div>
+      </div>
+      <div class="panel-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#38bdf8"></div>수위 (m)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f59e0b;border-radius:1px"></div>주의 기준</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ef4444;border-radius:1px"></div>위험 기준</div>
+        <div class="legend-item" id="data-count-${idx}" style="margin-left:auto"></div>
+      </div>
+    `;
+    grid.appendChild(panel);
+  });
+
+}
+
+// 외부 클릭 시 드롭다운 닫기 (한 번만 등록)
+document.addEventListener('click', closeAllDropdowns);
+
+// ─────────────────────────────────────────────
+// 드롭다운 토글 / 검색 / 관측소 선택
+// ─────────────────────────────────────────────
+function toggleDropdown(idx, e) {
+  e.stopPropagation();
+  const menu = document.getElementById(`dropdown-${idx}`);
+  const btn  = document.getElementById(`ddtoggle-${idx}`);
+  const isOpen = menu.classList.contains('open');
+
+  // 다른 드롭다운 모두 닫기
+  document.querySelectorAll('.dropdown-menu.open').forEach(m => m.classList.remove('open'));
+  document.querySelectorAll('.dropdown-toggle-btn.open').forEach(b => b.classList.remove('open'));
+
+  if (!isOpen) {
+    menu.classList.add('open');
+    btn.classList.add('open');
+    // 검색창 초기화 후 포커스
+    const input = menu.querySelector('.dropdown-search');
+    input.value = '';
+    filterDropdown(idx, '');
+    setTimeout(() => input.focus(), 50);
+  }
+}
+
+function closeAllDropdowns(e) {
+  if (e && e.target.closest('.panel-dropdown-wrap')) return;
+  document.querySelectorAll('.dropdown-menu.open').forEach(m => m.classList.remove('open'));
+  document.querySelectorAll('.dropdown-toggle-btn.open').forEach(b => b.classList.remove('open'));
+}
+
+function filterDropdown(idx, query) {
+  const listEl    = document.getElementById(`dropdown-list-${idx}`);
+  const q         = query.trim().toLowerCase();
+  const currentId = panelStations[idx]?.id;
+
+  if (!ALL_STATIONS.length) {
+    listEl.innerHTML = '<div style="padding:0.75rem;font-size:0.75rem;color:var(--muted)">관측소 목록 로딩 중...</div>';
+    return;
+  }
+
+  const groups = [...new Set(ALL_STATIONS.map(s => s.group))];
+  let totalShown = 0;
+
+  const html = groups.map(g => {
+    const items = ALL_STATIONS.filter(s => s.group === g &&
+      (!q || s.name.toLowerCase().includes(q) || s.id.toLowerCase().includes(q)));
+    if (!items.length) return '';
+    totalShown += items.length;
+    return `
+      <div class="dropdown-group-label">${g} <span style="font-weight:400;opacity:.6">(${items.length})</span></div>
+      ${items.map(s => `
+        <div class="dropdown-item ${s.id === currentId ? 'current' : ''}"
+             onclick="selectPanelStation(${idx}, '${s.id}')">
+          <span>${s.name}</span>
+          <span class="dropdown-item-id">${s.id}</span>
+        </div>`).join('')}
+    `;
+  }).join('');
+
+  listEl.innerHTML = html ||
+    '<div style="padding:0.75rem;font-size:0.75rem;color:var(--muted)">검색 결과 없음</div>';
+}
+
+async function selectPanelStation(panelIdx, stationId) {
+  const s = ALL_STATIONS.find(x => x.id === stationId);
+  if (!s) return;
+
+  // 패널 상태 업데이트
+  panelStations[panelIdx] = s;
+  saveSettings();
+
+  // 제목 업데이트
+  document.getElementById(`title-name-${panelIdx}`).textContent = s.name;
+  document.getElementById(`title-en-${panelIdx}`).textContent   = s.nameEn;
+
+  // 드롭다운 닫기
+  document.getElementById(`dropdown-${panelIdx}`).classList.remove('open');
+  document.getElementById(`ddtoggle-${panelIdx}`).classList.remove('open');
+
+  // 해당 패널만 재로드
+  await loadPanel(panelIdx);
+}
+
+// ─────────────────────────────────────────────
+// 패널 헤더 업데이트 (데이터 도착 후)
+// ─────────────────────────────────────────────
+function updatePanelHeader(panelIdx, d) {
+  const s  = panelStations[panelIdx];
+  const sc = statusClass(d?.level, s);
+
+  const bar      = document.getElementById(`bar-${panelIdx}`);
+  const meta     = document.getElementById(`meta-${panelIdx}`);
+  const metricsEl = document.getElementById(`metrics-${panelIdx}`);
+
+  if (bar) bar.className = `panel-status-bar ${sc}`;
+
+  if (metricsEl && d) {
+    const lvlColor = sc==='danger'?'var(--danger)':sc==='warn'?'var(--warn)':'var(--text)';
+    metricsEl.innerHTML = `
+      <div class="metric">
+        <label>수위</label>
+        <span class="value" style="color:${lvlColor}">${d.level != null ? d.level.toFixed(2) : '—'}</span>
+        <span class="unit">m</span>
+      </div>
+      ${d.discharge != null ? `
+      <div class="metric">
+        <label>유량</label>
+        <span class="value" style="color:var(--muted)">${d.discharge.toFixed(1)}</span>
+        <span class="unit">m³/s</span>
+      </div>` : ''}
+    `;
+  }
+
+  if (meta) {
+    meta.innerHTML = statusBadgeHTML(d?.level, s) +
+      (d?.time ? `<span class="panel-time">${formatTime(d.time)}</span>` : '');
+  }
+}
+
+// ─────────────────────────────────────────────
+// 차트 그리기
+// ─────────────────────────────────────────────
+function drawStationChart(panelIdx, d) {
+  const s       = panelStations[panelIdx];
+  const overlay = document.getElementById(`overlay-${panelIdx}`);
+  const canvas  = document.getElementById(`canvas-${panelIdx}`);
+
+  if (!d || !d.history?.length) {
+    overlay.style.display = 'flex';
+    overlay.textContent = '데이터가 없습니다.';
+    return;
+  }
+
+  overlay.style.display = 'none';
+
+  const labels = d.history.map(h => h.time);
+  const levels = d.history.map(h => h.level);
+
+  // 데이터 범위 및 건수 표시
+  const countEl = document.getElementById(`data-count-${panelIdx}`);
+  if (countEl && d.history.length) {
+    const first = d.history[0].time;
+    const last  = d.history[d.history.length - 1].time;
+    const fmtD  = t => t.toLocaleDateString('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit' });
+    countEl.textContent = `${fmtD(first)} ~ ${fmtD(last)} (${levels.length}개)`;
+  }
+
+  if (chartInstances[panelIdx]) {
+    chartInstances[panelIdx].destroy();
+    delete chartInstances[panelIdx];
+  }
+
+  const sc = statusClass(d.level, s);
+  const lineColor = sc === 'danger' ? '#ef4444' : sc === 'warn' ? '#f59e0b' : '#38bdf8';
+  const fillColor = sc === 'danger' ? 'rgba(239,68,68,0.07)' : sc === 'warn' ? 'rgba(245,158,11,0.07)' : 'rgba(56,189,248,0.07)';
+
+  chartInstances[panelIdx] = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: '수위 (m)',
+        data: levels,
+        borderColor: lineColor,
+        backgroundColor: fillColor,
+        borderWidth: 2,
+        pointRadius: levels.length > 80 ? 0 : 2.5,
+        pointHoverRadius: 4,
+        fill: true,
+        tension: 0.35,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => `수위: ${ctx.parsed.y?.toFixed(3)} m`,
+            title: ctx => {
+              // parsed.x는 배열 인덱스일 수 있으므로 labels 배열에서 Date 객체를 직접 참조
+              const dt = labels[ctx[0].dataIndex];
+              if (!dt) return '';
+              return dt.toLocaleString('ko-KR', { timeZone: 'America/Toronto' }) + ' (ET)';
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          type: 'time',
+          time: { tooltipFormat: 'MM/dd HH:mm' },
+          grid:  { color: 'rgba(255,255,255,0.04)' },
+          ticks: { color: '#4a6080', maxTicksLimit: 6, font: { size: 10 } },
+        },
+        y: {
+          grid:  { color: 'rgba(255,255,255,0.04)' },
+          ticks: { color: '#4a6080', font: { size: 10 } },
+        },
+      },
+    },
+    plugins: [{
+      id: 'thresholds',
+      afterDraw(chart) {
+        const { ctx, scales: { y, x } } = chart;
+        const drawLine = (val, color, lbl) => {
+          const yPos = y.getPixelForValue(val);
+          if (yPos < y.top || yPos > y.bottom) return;
+          ctx.save();
+          ctx.strokeStyle = color; ctx.lineWidth = 1.2;
+          ctx.setLineDash([5, 4]);
+          ctx.beginPath(); ctx.moveTo(x.left, yPos); ctx.lineTo(x.right, yPos); ctx.stroke();
+          ctx.fillStyle = color; ctx.font = '9.5px Segoe UI';
+          ctx.fillText(lbl, x.right - 58, yPos - 3);
+          ctx.restore();
+        };
+        drawLine(s.warnLevel,   '#f59e0b', `주의 ${s.warnLevel}m`);
+        drawLine(s.dangerLevel, '#ef4444', `위험 ${s.dangerLevel}m`);
+        const fishVal = fishingLevels[panelIdx];
+        if (fishVal != null && !isNaN(fishVal)) {
+          const drawVal = Math.max(y.min, Math.min(fishVal, y.max));
+          drawLine(drawVal, '#d4a017', `낚시 ${fishVal}m`);
+        }
+      },
+    }],
+  });
+}
+
+// ─────────────────────────────────────────────
+// 범위 변경 → 모든 차트 재로드
+// ─────────────────────────────────────────────
+// Drag & Drop 패널 재배치
+// ─────────────────────────────────────────────
+let dragSrcIdx = null;
+
+function initDragAndDrop() {
+  document.querySelectorAll('.station-panel').forEach(panel => {
+    const idx = parseInt(panel.id.replace('panel-', ''));
+    const handle = panel.querySelector('.drag-handle');
+    if (!handle) return;
+
+    // 핸들에서만 드래그 시작
+    handle.addEventListener('mousedown', () => { panel.setAttribute('draggable', 'true'); });
+    panel.addEventListener('dragstart', e => {
+      dragSrcIdx = idx;
+      e.dataTransfer.effectAllowed = 'move';
+      setTimeout(() => panel.classList.add('dragging'), 0);
+    });
+    panel.addEventListener('dragend', () => {
+      panel.setAttribute('draggable', 'false');
+      panel.classList.remove('dragging');
+      document.querySelectorAll('.station-panel.drag-over')
+        .forEach(p => p.classList.remove('drag-over'));
+      dragSrcIdx = null;
+    });
+    panel.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (idx !== dragSrcIdx) {
+        document.querySelectorAll('.station-panel.drag-over')
+          .forEach(p => p.classList.remove('drag-over'));
+        panel.classList.add('drag-over');
+      }
+    });
+    panel.addEventListener('dragleave', e => {
+      if (!panel.contains(e.relatedTarget)) panel.classList.remove('drag-over');
+    });
+    panel.addEventListener('drop', e => {
+      e.preventDefault();
+      panel.classList.remove('drag-over');
+      const tgtIdx = parseInt(panel.id.replace('panel-', ''));
+      if (dragSrcIdx === null || dragSrcIdx === tgtIdx) return;
+
+      // 관측소 순서 교체
+      [panelStations[dragSrcIdx], panelStations[tgtIdx]] =
+        [panelStations[tgtIdx], panelStations[dragSrcIdx]];
+      // 낚시 기준값 교체
+      const tmpF = fishingLevels[dragSrcIdx] ?? null;
+      fishingLevels[dragSrcIdx] = fishingLevels[tgtIdx] ?? null;
+      fishingLevels[tgtIdx] = tmpF;
+
+      saveSettings();
+
+      // 기존 차트 인스턴스 제거 후 DOM 재구성
+      Object.values(chartInstances).forEach(c => c.destroy());
+      chartInstances = {};
+      buildPanels();
+      initDragAndDrop();
+
+      // 낚시 기준값 입력창 복원
+      Object.entries(fishingLevels).forEach(([i, val]) => {
+        const el = document.getElementById(`fishing-${i}`);
+        if (el && val != null) el.value = val;
+      });
+
+      // 캐시된 데이터로 즉시 재렌더 (API 재호출 없음)
+      panelStations.forEach((s, i) => {
+        const d = stationData[s.id];
+        if (d) { updatePanelHeader(i, d); drawStationChart(i, d); }
+        else    { loadPanel(i); }
+      });
+    });
+  });
+}
+
+// ─────────────────────────────────────────────
+// Best for Fishing 기준선
+// ─────────────────────────────────────────────
+function fishingFocus(panelIdx, el) {
+  el._prevVal = el.value;
+  el.value = '';
+}
+
+function fishingBlur(panelIdx, el) {
+  const raw = el.value.trim();
+  if (raw === '') {
+    el.value = el._prevVal ?? '';
+  } else {
+    const num = parseFloat(raw);
+    if (!isNaN(num)) {
+      el.value = num;
+      setFishingLevel(panelIdx, num);
+    } else {
+      el.value = el._prevVal ?? '';
+    }
+  }
+  el._prevVal = undefined;
+}
+
+function setFishingLevel(panelIdx, val) {
+  fishingLevels[panelIdx] = val === '' ? null : parseFloat(val);
+  if (chartInstances[panelIdx]) chartInstances[panelIdx].update();
+  saveSettings();
+}
+
+// ─────────────────────────────────────────────
+function setRange(rangeKey, btn) {
+  currentRange = rangeKey;
+  document.querySelectorAll('#range-buttons .range-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  saveSettings();
+  isRefreshing = false;  // 사용자 클릭은 항상 진행 중인 로드를 중단하고 즉시 실행
+  refreshAll();
+}
+
+// ─────────────────────────────────────────────
+// 패널 1개 로드
+// ─────────────────────────────────────────────
+async function loadPanel(panelIdx, retry = true, expectedRefreshId) {
+  // 더 새로운 새로고침이 시작됐으면 이 로드는 취소
+  if (expectedRefreshId !== undefined && refreshId !== expectedRefreshId) return;
+
+  const s  = panelStations[panelIdx];
+  const ov = document.getElementById(`overlay-${panelIdx}`);
+  if (ov) { ov.style.display = 'flex'; ov.innerHTML = '<span class="spinner"></span> 데이터 로딩 중...'; }
+
+  // 호출 시점의 rangeKey를 스냅샷으로 저장 (루프 도중 currentRange가 바뀌어도 영향 없음)
+  const rangeKey = currentRange;
+
+  try {
+    const d = await fetchStation(s, rangeKey);
+    // 데이터를 받아왔더라도 세대가 바뀌었으면 화면 업데이트 하지 않음
+    if (expectedRefreshId !== undefined && refreshId !== expectedRefreshId) return;
+    if (d) {
+      stationData[s.id] = d;
+      updatePanelHeader(panelIdx, d);
+      drawStationChart(panelIdx, d);
+    } else {
+      if (ov) { ov.style.display = 'flex'; ov.textContent = '데이터 없음'; }
+    }
+  } catch (e) {
+    if (retry) {
+      // 1초 대기 후 1회 재시도
+      await new Promise(r => setTimeout(r, 1000));
+      return loadPanel(panelIdx, false, expectedRefreshId);
+    }
+    console.warn(`${s.id} 로드 실패:`, e.message);
+    if (ov) { ov.style.display = 'flex'; ov.textContent = `로드 실패: ${e.message}`; }
+  }
+}
+
+// ─────────────────────────────────────────────
+// 전체 새로고침
+// ─────────────────────────────────────────────
+async function refreshAll() {
+  if (isRefreshing) return;   // 이미 실행 중이면 무시
+  isRefreshing = true;
+
+  // 새 세대 번호 발급 — 이전 루프에서 대기 중인 loadPanel 들은 이 번호가 다르면 스스로 종료
+  const myId = ++refreshId;
+
+  const btn = document.getElementById('refresh-btn');
+  btn.disabled = true;
+  btn.textContent = '로딩 중...';
+
+  // 패널을 1개씩 순차 로드 (API rate limit 완전 회피)
+  for (let idx = 0; idx < panelStations.length; idx++) {
+    // 더 새로운 새로고침이 시작됐으면 루프 중단
+    if (refreshId !== myId) break;
+    await loadPanel(idx, true, myId);
+  }
+
+  // 내가 여전히 최신 세대일 때만 완료 처리
+  if (refreshId === myId) {
+    document.getElementById('last-update').textContent =
+      '마지막 업데이트: ' +
+      new Date().toLocaleString('ko-KR', { timeZone: 'America/Toronto' }) + ' (ET)';
+
+    btn.disabled = false;
+    btn.textContent = '새로고침';
+    startCountdown();
+
+    isRefreshing = false;
+  }
+}
+
+// ─────────────────────────────────────────────
+// 업데이트 주기 설정
+// ─────────────────────────────────────────────
+let refreshIntervalMinutes = 30;
+let countdownTimer = null;
+let nextRefreshAt  = null;
+
+function setRefreshInterval(minutes, btn) {
+  refreshIntervalMinutes = minutes;
+  document.querySelectorAll('#interval-buttons .range-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  saveSettings();
+  startAutoRefresh();
+}
+
+function startCountdown() {
+  if (countdownTimer) clearInterval(countdownTimer);
+  nextRefreshAt = Date.now() + refreshIntervalMinutes * 60 * 1000;
+
+  const el = document.getElementById('next-update');
+  countdownTimer = setInterval(() => {
+    const remaining = Math.max(0, nextRefreshAt - Date.now());
+    const m = Math.floor(remaining / 60000);
+    const s = Math.floor((remaining % 60000) / 1000);
+    el.textContent = `다음 갱신까지 ${m}분 ${String(s).padStart(2,'0')}초`;
+    if (remaining === 0) clearInterval(countdownTimer);
+  }, 1000);
+}
+
+// ─────────────────────────────────────────────
+// 웹캠 전환
+// ─────────────────────────────────────────────
+function changeWebcam(value) {
+  const body   = document.getElementById('webcam-body');
+  const footer = document.getElementById('webcam-footer');
+  const select = document.getElementById('webcam-select');
+
+  if (!value) {
+    body.innerHTML = `<div class="webcam-placeholder"><span class="cam-icon">📷</span>위의 드롭다운에서 지역을 선택하세요</div>`;
+    footer.textContent = '📍 지역을 선택하면 실시간 웹캠이 표시됩니다';
+    return;
+  }
+
+  const label = select.options[select.selectedIndex].text;
+  footer.textContent = `📍 ${label}`;
+
+  if (value.startsWith('youtube:')) {
+    // YouTube 라이브 스트림
+    const videoId = value.replace('youtube:', '');
+    body.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1" allowfullscreen allow="autoplay"></iframe>`;
+  } else if (value.startsWith('http')) {
+    // 정적 이미지 웹캠 — 30초마다 자동 갱신
+    const ts  = () => `${value}?t=${Date.now()}`;
+    const img = document.createElement('img');
+    img.src = ts();
+    img.alt = label;
+    img.onerror = () => {
+      body.innerHTML = `<div class="webcam-placeholder"><span class="cam-icon">⚠️</span>이미지를 불러올 수 없습니다<br><span style="font-size:0.7rem">${value}</span></div>`;
+    };
+    body.innerHTML = '';
+    body.appendChild(img);
+
+    // 기존 갱신 타이머 제거 후 재설정
+    if (window._webcamTimer) clearInterval(window._webcamTimer);
+    window._webcamTimer = setInterval(() => {
+      const el = body.querySelector('img');
+      if (el) el.src = ts();
+    }, 30000);
+  }
+}
+
+function startAutoRefresh() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(refreshAll, refreshIntervalMinutes * 60 * 1000);
+  startCountdown();
+}
+
+// ─────────────────────────────────────────────
+// 설정 저장 / 복원 (localStorage)
+// ─────────────────────────────────────────────
+const STORAGE_KEY = 'grand-river-dashboard-v1';
+
+function saveSettings() {
+  const settings = {
+    currentRange,
+    refreshIntervalMinutes,
+    panelStationIds: panelStations.map(s => s.id),
+    fishingLevels,
+  };
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(settings)); } catch (_) {}
+}
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const s = JSON.parse(raw);
+
+    // 조회 기간 복원 (이전 버전 키 → 새 키 변환)
+    const rangeAlias = { '1개월': '1달', '6개월': '1달', '1년': '1달', '2주': '1주', '2달': '1달' };
+    const restored = rangeAlias[s.currentRange] ?? s.currentRange;
+    if (restored && RANGE_CONFIG[restored]) {
+      currentRange = restored;
+    }
+
+    // 업데이트 주기 복원
+    if ([10, 30, 60].includes(s.refreshIntervalMinutes)) {
+      refreshIntervalMinutes = s.refreshIntervalMinutes;
+    }
+
+    // 패널 관측소 복원 (ALL_STATIONS가 로드된 후 호출되어야 함)
+    if (Array.isArray(s.panelStationIds) && s.panelStationIds.length) {
+      panelStations = s.panelStationIds.map(id =>
+        ALL_STATIONS.find(x => x.id === id) || makeStation(id, id)
+      );
+    }
+
+    // 낚시 기준선 복원
+    if (s.fishingLevels && typeof s.fishingLevels === 'object') {
+      fishingLevels = s.fishingLevels;
+    }
+  } catch (_) {}
+}
+
+// 복원된 설정을 헤더 버튼 UI에 반영
+function applySettingsToUI() {
+  // 조회 기간 버튼
+  document.querySelectorAll('#range-buttons .range-btn').forEach(btn => {
+    const key = btn.textContent.trim();
+    btn.classList.toggle('active', key === currentRange);
+  });
+
+  // 업데이트 주기 버튼
+  document.querySelectorAll('#interval-buttons .range-btn').forEach(btn => {
+    const mins = parseInt(btn.textContent);
+    btn.classList.toggle('active', mins === refreshIntervalMinutes);
+  });
+}
+
+// ─────────────────────────────────────────────
+// 초기화: 관측소 목록 먼저 로드 → 패널 구성 → 데이터 로드
+// ─────────────────────────────────────────────
+async function init() {
+  // 1) 온타리오 전체 관측소 목록 로드
+  document.getElementById('last-update').textContent = '관측소 목록 로딩 중...';
+  try {
+    await loadAllStations();
+  } catch (e) {
+    console.error('관측소 목록 로드 실패:', e);
+    panelStations = DEFAULT_PANEL_IDS.map(id => makeStation(id, id));
+  }
+
+  // 2) 실시간 데이터 없는 관측소 노트 패널 렌더링
+  renderNotePanel();
+
+  // 3) 저장된 설정 복원 (관측소 목록 로드 후 실행해야 이름 매핑 가능)
+  loadSettings();
+
+  // 3) 패널이 아직 없으면 기본값으로 세팅
+  if (!panelStations.length) {
+    panelStations = DEFAULT_PANEL_IDS.map(id =>
+      ALL_STATIONS.find(s => s.id === id) || makeStation(id, id)
+    );
+  }
+
+  // 4) 헤더 버튼 상태를 복원된 설정에 맞게 업데이트
+  applySettingsToUI();
+
+  // 5) 패널 DOM 생성
+  buildPanels();
+  initDragAndDrop();
+
+  // 5-1) 복원된 낚시 기준값을 입력창에 반영
+  Object.entries(fishingLevels).forEach(([idx, val]) => {
+    const el = document.getElementById(`fishing-${idx}`);
+    if (el && val != null) el.value = val;
+  });
+
+  // 6) 수위 데이터 로드
+  await refreshAll();
+  startAutoRefresh();
+}
+
+init();
+</script>
+</body>
+</html>
