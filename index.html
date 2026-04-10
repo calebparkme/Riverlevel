@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>온타리오주 강 수위 모니터링</title>
+  <title>Ontario River Water Level Monitoring</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
   <style>
@@ -652,34 +652,34 @@
 
 <header>
   <div class="header-left">
-    <h1>온타리오주 강 수위 모니터링</h1>
-    <p>Ontario, Canada — 실시간 수문 데이터 (출처: Water Survey of Canada · ECCC)</p>
+    <h1>Ontario River Water Level Monitoring</h1>
+    <p>Ontario, Canada — Real-time hydrometric data (Source: Water Survey of Canada · ECCC)</p>
   </div>
   <div class="header-right">
     <div class="header-group">
-      <span class="group-label">조회 기간</span>
+      <span class="group-label">Period</span>
       <div class="range-buttons" id="range-buttons">
-        <button class="range-btn active" onclick="setRange('당일', this)">당일</button>
-        <button class="range-btn" onclick="setRange('3일', this)">3일</button>
-        <button class="range-btn" onclick="setRange('1주', this)">1주</button>
-        <button class="range-btn" onclick="setRange('1달', this)">1달</button>
+        <button class="range-btn active" onclick="setRange('Today', this)">Today</button>
+        <button class="range-btn" onclick="setRange('3 Days', this)">3 Days</button>
+        <button class="range-btn" onclick="setRange('1 Week', this)">1 Week</button>
+        <button class="range-btn" onclick="setRange('1 Month', this)">1 Month</button>
       </div>
     </div>
     <div class="header-divider"></div>
     <div class="header-group">
-      <span class="group-label">업데이트 주기</span>
+      <span class="group-label">Refresh</span>
       <div class="range-buttons" id="interval-buttons">
-        <button class="range-btn" onclick="setRefreshInterval(10, this)">10분</button>
-        <button class="range-btn active" onclick="setRefreshInterval(30, this)">30분</button>
-        <button class="range-btn" onclick="setRefreshInterval(60, this)">1시간</button>
+        <button class="range-btn" onclick="setRefreshInterval(10, this)">10 min</button>
+        <button class="range-btn active" onclick="setRefreshInterval(30, this)">30 min</button>
+        <button class="range-btn" onclick="setRefreshInterval(60, this)">1 hr</button>
       </div>
     </div>
     <div class="header-divider"></div>
     <div class="header-group">
-      <span id="last-update" style="font-size:0.72rem;color:var(--muted)">데이터 로딩 중...</span>
+      <span id="last-update" style="font-size:0.72rem;color:var(--muted)">Loading...</span>
       <span id="next-update" style="font-size:0.68rem;color:var(--muted)"></span>
     </div>
-    <button class="refresh-btn" id="refresh-btn" onclick="refreshAll()">새로고침</button>
+    <button class="refresh-btn" id="refresh-btn" onclick="refreshAll()">Refresh</button>
   </div>
 </header>
 
@@ -692,19 +692,19 @@
     <!-- 관측소 목록 -->
     <div class="note-header">
       <div class="note-header-left">
-        <span class="note-title">⚠ 실시간 데이터 없는 관측소</span>
+        <span class="note-title">⚠ Stations Without Real-time Data</span>
         <span class="note-badge" id="note-count">…</span>
       </div>
-      <button class="note-toggle" onclick="toggleNote()" id="note-toggle-btn" title="접기/펼치기">▲</button>
+      <button class="note-toggle" onclick="toggleNote()" id="note-toggle-btn" title="Collapse/Expand">▲</button>
     </div>
     <div class="note-body" id="note-body">
       <div class="note-desc">
-        아래 관측소는 온타리오 활성 관측소이지만<br>
-        실시간(5분~1시간) 데이터를 제공하지 않아<br>
-        지역 선택에서 제외됩니다.
+        These are active Ontario stations but do not<br>
+        provide real-time (5 min–1 hr) data and are<br>
+        excluded from station selection.
       </div>
       <div id="note-list">
-        <div class="note-loading"><span class="spinner"></span> 로딩 중...</div>
+        <div class="note-loading"><span class="spinner"></span> Loading...</div>
       </div>
     </div>
 
@@ -712,11 +712,11 @@
     <div class="webcam-panel">
       <div class="webcam-panel-header">
         <div class="webcam-panel-title">
-          📷 실시간 웹캠
+          📷 Live Webcam
           <span class="webcam-live-badge">LIVE</span>
         </div>
         <select class="webcam-location-select" id="webcam-select" onchange="changeWebcam(this.value)">
-          <option value="">— 지역 선택 —</option>
+          <option value="">— Select Location —</option>
           <optgroup label="Grand River">
             <option value="https://apps.grandriver.ca/WaterData/cameras/westmontrose/westmontrose.jpg">Grand River at West Montrose (Covered Bridge)</option>
             <option value="https://apps.grandriver.ca/WaterData/cameras/brantford/brantford.jpg">Grand River at Brantford (Veterans Memorial)</option>
@@ -726,18 +726,18 @@
       <div class="webcam-body" id="webcam-body">
         <div class="webcam-placeholder">
           <span class="cam-icon">📷</span>
-          위의 드롭다운에서 지역을 선택하세요
+          Select a location from the dropdown above
         </div>
       </div>
       <div class="webcam-footer" id="webcam-footer">
-        📍 지역을 선택하면 실시간 웹캠이 표시됩니다
+        📍 Select a location to view the live webcam
       </div>
     </div>
   </aside>
 </main>
 
 <footer>
-  데이터 출처:
+  Data source:
   <a href="https://wateroffice.ec.gc.ca/" target="_blank">Water Survey of Canada (WSC) — Environment and Climate Change Canada (ECCC)</a>
 </footer>
 
@@ -835,10 +835,10 @@ function renderNotePanel() {
   const listEl  = document.getElementById('note-list');
   if (!countEl || !listEl) return;
 
-  countEl.textContent = `${EXCLUDED_STATIONS.length}개`;
+  countEl.textContent = `${EXCLUDED_STATIONS.length}`;
 
   if (!EXCLUDED_STATIONS.length) {
-    listEl.innerHTML = '<div class="note-loading">제외된 관측소 없음</div>';
+    listEl.innerHTML = '<div class="note-loading">No excluded stations</div>';
     return;
   }
 
@@ -880,16 +880,16 @@ const REALTIME_URL = 'https://api.weather.gc.ca/collections/hydrometric-realtime
 // ※ 2달 요청 시 최근 30일치만 반환될 수 있음
 // ※ hydrometric-realtime API 는 최근 ~30일 롤링 윈도우만 제공
 const RANGE_CONFIG = {
-  '당일': { days: 1,  limit: 500  },
-  '3일':  { days: 3,  limit: 1500 },
-  '1주':  { days: 7,  limit: 2500 },
-  '1달':  { days: 30, limit: 9000 },
+  'Today':   { days: 1,  limit: 500  },
+  '3 Days':  { days: 3,  limit: 1500 },
+  '1 Week':  { days: 7,  limit: 2500 },
+  '1 Month': { days: 30, limit: 9000 },
 };
 
 let stationData    = {};   // stationId  → { level, discharge, time, history }
 let chartInstances = {};   // panelIndex → Chart instance
 let fishingLevels  = {};   // panelIndex → number | null
-let currentRange   = '당일';
+let currentRange   = 'Today';
 let refreshTimer   = null;
 let isRefreshing   = false; // 동시 새로고침 방지 플래그
 let refreshId      = 0;     // 새로고침 세대 카운터 (오래된 로드 취소용)
@@ -936,10 +936,10 @@ function statusClass(level, s) {
 }
 
 function statusBadgeHTML(level, s) {
-  if (level == null) return `<span class="status-badge status-loading"><span class="spinner"></span>로딩 중</span>`;
-  if (level >= s.dangerLevel) return `<span class="status-badge status-danger">위험</span>`;
-  if (level >= s.warnLevel)   return `<span class="status-badge status-warn">주의</span>`;
-  return `<span class="status-badge status-normal">정상</span>`;
+  if (level == null) return `<span class="status-badge status-loading"><span class="spinner"></span>Loading</span>`;
+  if (level >= s.dangerLevel) return `<span class="status-badge status-danger">Danger</span>`;
+  if (level >= s.warnLevel)   return `<span class="status-badge status-warn">Warning</span>`;
+  return `<span class="status-badge status-normal">Normal</span>`;
 }
 
 function formatTime(date) {
@@ -955,7 +955,7 @@ function formatTime(date) {
 // ─────────────────────────────────────────────
 function buildDropdownHTML(panelIdx) {
   // 드롭다운 열릴 때 filterDropdown이 채우므로 placeholder만 반환
-  return '<div style="padding:0.75rem;font-size:0.75rem;color:var(--muted)">관측소 목록 로딩 중...</div>';
+  return '<div style="padding:0.75rem;font-size:0.75rem;color:var(--muted)">Loading station list...</div>';
 }
 
 // ─────────────────────────────────────────────
@@ -972,7 +972,7 @@ function buildPanels() {
     panel.innerHTML = `
       <div class="panel-status-bar" id="bar-${idx}"></div>
       <div class="panel-header">
-        <span class="drag-handle" title="드래그하여 위치 변경">
+        <span class="drag-handle" title="Drag to reorder">
           <svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor">
             <circle cx="3" cy="3"  r="1.5"/><circle cx="9" cy="3"  r="1.5"/>
             <circle cx="3" cy="9"  r="1.5"/><circle cx="9" cy="9"  r="1.5"/>
@@ -986,19 +986,19 @@ function buildPanels() {
         <div style="display:flex;align-items:stretch;gap:0.6rem">
           <div class="panel-metrics" id="metrics-${idx}">
             <div class="metric">
-              <label>수위</label><span class="value">—</span><span class="unit">m</span>
+              <label>Level</label><span class="value">—</span><span class="unit">m</span>
             </div>
           </div>
           <div class="panel-dropdown-wrap">
             <button class="dropdown-toggle-btn" id="ddtoggle-${idx}"
                     onclick="toggleDropdown(${idx}, event)">
-              지역 변경
+              Change Station
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
                 <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
               </svg>
             </button>
             <div class="dropdown-menu" id="dropdown-${idx}">
-              <input class="dropdown-search" type="text" placeholder="관측소 검색..."
+              <input class="dropdown-search" type="text" placeholder="Search stations..."
                      oninput="filterDropdown(${idx}, this.value)" />
               <div class="dropdown-list" id="dropdown-list-${idx}">
                 ${buildDropdownHTML(idx)}
@@ -1014,16 +1014,16 @@ function buildPanels() {
         </div>
       </div>
       <div class="panel-meta" id="meta-${idx}">
-        <span class="status-badge status-loading"><span class="spinner"></span>로딩 중</span>
+        <span class="status-badge status-loading"><span class="spinner"></span>Loading</span>
       </div>
       <div class="panel-chart-wrap">
         <canvas id="canvas-${idx}"></canvas>
-        <div class="chart-overlay" id="overlay-${idx}"><span class="spinner"></span> 데이터 로딩 중...</div>
+        <div class="chart-overlay" id="overlay-${idx}"><span class="spinner"></span> Loading data...</div>
       </div>
       <div class="panel-legend">
-        <div class="legend-item"><div class="legend-dot" style="background:#38bdf8"></div>수위 (m)</div>
-        <div class="legend-item"><div class="legend-dot" style="background:#f59e0b;border-radius:1px"></div>주의 기준</div>
-        <div class="legend-item"><div class="legend-dot" style="background:#ef4444;border-radius:1px"></div>위험 기준</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#38bdf8"></div>Level (m)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f59e0b;border-radius:1px"></div>Warning</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ef4444;border-radius:1px"></div>Danger</div>
         <div class="legend-item" id="data-count-${idx}" style="margin-left:auto"></div>
       </div>
     `;
@@ -1071,7 +1071,7 @@ function filterDropdown(idx, query) {
   const currentId = panelStations[idx]?.id;
 
   if (!ALL_STATIONS.length) {
-    listEl.innerHTML = '<div style="padding:0.75rem;font-size:0.75rem;color:var(--muted)">관측소 목록 로딩 중...</div>';
+    listEl.innerHTML = '<div style="padding:0.75rem;font-size:0.75rem;color:var(--muted)">Loading station list...</div>';
     return;
   }
 
@@ -1095,7 +1095,7 @@ function filterDropdown(idx, query) {
   }).join('');
 
   listEl.innerHTML = html ||
-    '<div style="padding:0.75rem;font-size:0.75rem;color:var(--muted)">검색 결과 없음</div>';
+    '<div style="padding:0.75rem;font-size:0.75rem;color:var(--muted)">No results found</div>';
 }
 
 async function selectPanelStation(panelIdx, stationId) {
@@ -1135,13 +1135,13 @@ function updatePanelHeader(panelIdx, d) {
     const lvlColor = sc==='danger'?'var(--danger)':sc==='warn'?'var(--warn)':'var(--text)';
     metricsEl.innerHTML = `
       <div class="metric">
-        <label>수위</label>
+        <label>Level</label>
         <span class="value" style="color:${lvlColor}">${d.level != null ? d.level.toFixed(2) : '—'}</span>
         <span class="unit">m</span>
       </div>
       ${d.discharge != null ? `
       <div class="metric">
-        <label>유량</label>
+        <label>Flow</label>
         <span class="value" style="color:var(--muted)">${d.discharge.toFixed(1)}</span>
         <span class="unit">m³/s</span>
       </div>` : ''}
@@ -1164,7 +1164,7 @@ function drawStationChart(panelIdx, d) {
 
   if (!d || !d.history?.length) {
     overlay.style.display = 'flex';
-    overlay.textContent = '데이터가 없습니다.';
+    overlay.textContent = 'No data available.';
     return;
   }
 
@@ -1179,7 +1179,7 @@ function drawStationChart(panelIdx, d) {
     const first = d.history[0].time;
     const last  = d.history[d.history.length - 1].time;
     const fmtD  = t => t.toLocaleDateString('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit' });
-    countEl.textContent = `${fmtD(first)} ~ ${fmtD(last)} (${levels.length}개)`;
+    countEl.textContent = `${fmtD(first)} ~ ${fmtD(last)} (${levels.length})`;
   }
 
   if (chartInstances[panelIdx]) {
@@ -1196,7 +1196,7 @@ function drawStationChart(panelIdx, d) {
     data: {
       labels,
       datasets: [{
-        label: '수위 (m)',
+        label: 'Level (m)',
         data: levels,
         borderColor: lineColor,
         backgroundColor: fillColor,
@@ -1215,7 +1215,7 @@ function drawStationChart(panelIdx, d) {
         legend: { display: false },
         tooltip: {
           callbacks: {
-            label: ctx => `수위: ${ctx.parsed.y?.toFixed(3)} m`,
+            label: ctx => `Level: ${ctx.parsed.y?.toFixed(3)} m`,
             title: ctx => {
               // parsed.x는 배열 인덱스일 수 있으므로 labels 배열에서 Date 객체를 직접 참조
               const dt = labels[ctx[0].dataIndex];
@@ -1253,12 +1253,12 @@ function drawStationChart(panelIdx, d) {
           ctx.fillText(lbl, x.right - 58, yPos - 3);
           ctx.restore();
         };
-        drawLine(s.warnLevel,   '#f59e0b', `주의 ${s.warnLevel}m`);
-        drawLine(s.dangerLevel, '#ef4444', `위험 ${s.dangerLevel}m`);
+        drawLine(s.warnLevel,   '#f59e0b', `Warning ${s.warnLevel}m`);
+        drawLine(s.dangerLevel, '#ef4444', `Danger ${s.dangerLevel}m`);
         const fishVal = fishingLevels[panelIdx];
         if (fishVal != null && !isNaN(fishVal)) {
           const drawVal = Math.max(y.min, Math.min(fishVal, y.max));
-          drawLine(drawVal, '#d4a017', `낚시 ${fishVal}m`);
+          drawLine(drawVal, '#d4a017', `Fishing ${fishVal}m`);
         }
       },
     }],
@@ -1391,7 +1391,7 @@ async function loadPanel(panelIdx, retry = true, expectedRefreshId) {
 
   const s  = panelStations[panelIdx];
   const ov = document.getElementById(`overlay-${panelIdx}`);
-  if (ov) { ov.style.display = 'flex'; ov.innerHTML = '<span class="spinner"></span> 데이터 로딩 중...'; }
+  if (ov) { ov.style.display = 'flex'; ov.innerHTML = '<span class="spinner"></span> Loading data...'; }
 
   // 호출 시점의 rangeKey를 스냅샷으로 저장 (루프 도중 currentRange가 바뀌어도 영향 없음)
   const rangeKey = currentRange;
@@ -1405,7 +1405,7 @@ async function loadPanel(panelIdx, retry = true, expectedRefreshId) {
       updatePanelHeader(panelIdx, d);
       drawStationChart(panelIdx, d);
     } else {
-      if (ov) { ov.style.display = 'flex'; ov.textContent = '데이터 없음'; }
+      if (ov) { ov.style.display = 'flex'; ov.textContent = 'No data'; }
     }
   } catch (e) {
     if (retry) {
@@ -1414,7 +1414,7 @@ async function loadPanel(panelIdx, retry = true, expectedRefreshId) {
       return loadPanel(panelIdx, false, expectedRefreshId);
     }
     console.warn(`${s.id} 로드 실패:`, e.message);
-    if (ov) { ov.style.display = 'flex'; ov.textContent = `로드 실패: ${e.message}`; }
+    if (ov) { ov.style.display = 'flex'; ov.textContent = `Load failed: ${e.message}`; }
   }
 }
 
@@ -1430,7 +1430,7 @@ async function refreshAll() {
 
   const btn = document.getElementById('refresh-btn');
   btn.disabled = true;
-  btn.textContent = '로딩 중...';
+  btn.textContent = 'Loading...';
 
   // 패널을 1개씩 순차 로드 (API rate limit 완전 회피)
   for (let idx = 0; idx < panelStations.length; idx++) {
@@ -1442,11 +1442,11 @@ async function refreshAll() {
   // 내가 여전히 최신 세대일 때만 완료 처리
   if (refreshId === myId) {
     document.getElementById('last-update').textContent =
-      '마지막 업데이트: ' +
+      'Last updated: ' +
       new Date().toLocaleString('ko-KR', { timeZone: 'America/Toronto' }) + ' (ET)';
 
     btn.disabled = false;
-    btn.textContent = '새로고침';
+    btn.textContent = 'Refresh';
     startCountdown();
 
     isRefreshing = false;
@@ -1477,7 +1477,7 @@ function startCountdown() {
     const remaining = Math.max(0, nextRefreshAt - Date.now());
     const m = Math.floor(remaining / 60000);
     const s = Math.floor((remaining % 60000) / 1000);
-    el.textContent = `다음 갱신까지 ${m}분 ${String(s).padStart(2,'0')}초`;
+    el.textContent = `Next refresh in ${m}m ${String(s).padStart(2,'0')}s`;
     if (remaining === 0) clearInterval(countdownTimer);
   }, 1000);
 }
@@ -1491,8 +1491,8 @@ function changeWebcam(value) {
   const select = document.getElementById('webcam-select');
 
   if (!value) {
-    body.innerHTML = `<div class="webcam-placeholder"><span class="cam-icon">📷</span>위의 드롭다운에서 지역을 선택하세요</div>`;
-    footer.textContent = '📍 지역을 선택하면 실시간 웹캠이 표시됩니다';
+    body.innerHTML = `<div class="webcam-placeholder"><span class="cam-icon">📷</span>Select a location from the dropdown above</div>`;
+    footer.textContent = '📍 Select a location to view the live webcam';
     return;
   }
 
@@ -1510,7 +1510,7 @@ function changeWebcam(value) {
     img.src = ts();
     img.alt = label;
     img.onerror = () => {
-      body.innerHTML = `<div class="webcam-placeholder"><span class="cam-icon">⚠️</span>이미지를 불러올 수 없습니다<br><span style="font-size:0.7rem">${value}</span></div>`;
+      body.innerHTML = `<div class="webcam-placeholder"><span class="cam-icon">⚠️</span>Unable to load image<br><span style="font-size:0.7rem">${value}</span></div>`;
     };
     body.innerHTML = '';
     body.appendChild(img);
@@ -1552,7 +1552,10 @@ function loadSettings() {
     const s = JSON.parse(raw);
 
     // 조회 기간 복원 (이전 버전 키 → 새 키 변환)
-    const rangeAlias = { '1개월': '1달', '6개월': '1달', '1년': '1달', '2주': '1주', '2달': '1달' };
+    const rangeAlias = {
+      '당일': 'Today', '3일': '3 Days', '1주': '1 Week', '1달': '1 Month',
+      '1개월': '1 Month', '6개월': '1 Month', '1년': '1 Month', '2주': '1 Week', '2달': '1 Month',
+    };
     const restored = rangeAlias[s.currentRange] ?? s.currentRange;
     if (restored && RANGE_CONFIG[restored]) {
       currentRange = restored;
@@ -1597,7 +1600,7 @@ function applySettingsToUI() {
 // ─────────────────────────────────────────────
 async function init() {
   // 1) 온타리오 전체 관측소 목록 로드
-  document.getElementById('last-update').textContent = '관측소 목록 로딩 중...';
+  document.getElementById('last-update').textContent = 'Loading station list...';
   try {
     await loadAllStations();
   } catch (e) {
