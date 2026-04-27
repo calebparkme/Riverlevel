@@ -146,7 +146,23 @@
     }
 
     @media (max-width: 900px) {
-      main { flex-direction: column; }
+      body {
+        height: auto;
+        min-height: 100vh;
+        overflow-y: auto;
+      }
+      main {
+        flex-direction: column;
+        overflow: visible;
+        min-height: auto;
+      }
+      .charts-area { min-height: auto; }
+      .charts-grid {
+        grid-template-rows: auto;
+        min-height: auto;
+        overflow: visible;
+      }
+      .station-panel { min-height: 280px; }
       .note-panel { width: 100% !important; }
     }
 
